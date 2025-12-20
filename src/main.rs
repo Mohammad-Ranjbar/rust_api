@@ -1,46 +1,59 @@
-use axum::{
-    routing::get,
-    Router,
-    Json,
-};
-use serde::Serialize;
-use tower_http::trace::TraceLayer;
-
-#[derive(Serialize)]
-struct Message {
-    message: String,
-}
+use std::env;
+use axum::Router;
+use sea_orm::{Database};
+use tokio::net::TcpListener;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use crate::db::Db;
+mod routes;
+mod db;
+mod entity;
+mod http;
 
 #[tokio::main]
 async fn main() {
-  
-    tracing_subscriber::fmt::init();
+    // --------------------------------------------------
+    // Load .env
+    // --------------------------------------------------
+    dotenv::dotenv().ok();
 
-    let app = Router::new()
-        .route("/", get(root_handler))
-        .route("/shopw", get(shopw_handler))
-        .layer(TraceLayer::new_for_http()); 
+    // --------------------------------------------------
+    // Logging
+    // --------------------------------------------------
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::fmt::layer())
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "info".into()),
+        )
+        .init();
 
-    // Run it
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
+    // --------------------------------------------------
+    // Database
+    // --------------------------------------------------
+    let database_url =
+        env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+
+    let db: Db = Database::connect(&database_url)
+        .await
+        .expect("Failed to connect to database");
+
+    tracing::info!("Database connected");
+
+    // --------------------------------------------------
+    // Router (state-aware)
+    // --------------------------------------------------
+    let app: Router = routes::routes().with_state(db);
+
+    // --------------------------------------------------
+    // HTTP server (Axum 0.8)
+    // --------------------------------------------------
+    let listener = TcpListener::bind("0.0.0.0:3000")
+        .await
+        .expect("Failed to bind port");
+
+    tracing::info!("Server running on http://0.0.0.0:3000");
+
+    axum::serve(listener, app)
         .await
         .unwrap();
-    
-    tracing::info!("🚀 Server running on http://localhost:3000");
-    
-    axum::serve(listener, app).await.unwrap();
-}
-
-async fn root_handler() -> Json<Message> {
-    tracing::info!("Root handler called");
-    Json(Message {
-        message: "Hello, World!".to_string(),
-    })
-}
-
-async fn shopw_handler() -> Json<Message> {
-    tracing::info!("Shopw handler called");
-    Json(Message {
-        message: "Hello from shopw route!".to_string(),
-    })
 }
