@@ -25,7 +25,6 @@ pub async fn store(
         ..Default::default()
     };
 
-    // Insert into DB
     match user.insert(&db).await {
         Ok(model) => (StatusCode::CREATED, Json(model)).into_response(),
         Err(err) => {
