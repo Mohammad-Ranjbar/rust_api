@@ -7,7 +7,6 @@ use axum::{
 
 use sea_orm::{ActiveModelTrait, Set};
 use validator::Validate;
-use chrono_tz::Asia::Tehran;
 use crate::db::Db;
 use crate::entity::user;
 use crate::http::requests::user_request::CreateUserRequest;
@@ -28,23 +27,10 @@ pub async fn store(
     };
 
     match user.insert(&db).await {
-                Ok(model) => {
-            let response = UserResponse {
-                id: model.id,
-                title: model.title,
-                text: model.text,
-                created_at: model
-                    .created_at
-                    .with_timezone(&Tehran)
-                    .to_rfc3339(),
-                updated_at: model
-                    .updated_at
-                    .with_timezone(&Tehran)
-                    .to_rfc3339(),
-            };
-
-            (StatusCode::CREATED, Json(response)).into_response()
-        },
+Ok(model) => {
+        let response: UserResponse = model.into();
+        (StatusCode::CREATED, Json(response)).into_response()
+                    },
         Err(err) => {
             tracing::error!("db error: {:?}", err);
             StatusCode::INTERNAL_SERVER_ERROR.into_response()
