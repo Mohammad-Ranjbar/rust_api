@@ -5,7 +5,7 @@ use axum::{
     Json,
 };
 
-use sea_orm::{ActiveModelTrait, Set};
+use sea_orm::{ActiveModelTrait, Set,EntityTrait,QueryOrder};
 use validator::Validate;
 use crate::db::Db;
 use crate::entity::user;
@@ -31,6 +31,29 @@ Ok(model) => {
         let response: UserResponse = model.into();
         (StatusCode::CREATED, Json(response)).into_response()
                     },
+        Err(err) => {
+            tracing::error!("db error: {:?}", err);
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
+        }
+    }
+}
+
+
+pub async fn index(
+    State(db): State<Db>,
+) -> impl IntoResponse {
+    match user::Entity::find()
+        .order_by_desc(user::Column::CreatedAt)
+        .all(&db)
+        .await
+    {
+        Ok(models) => {
+            // تبدیل Model ها به Resource ها
+            let data: Vec<UserResponse> =
+                models.into_iter().map(Into::into).collect();
+
+            (StatusCode::OK, Json(data)).into_response()
+        }
         Err(err) => {
             tracing::error!("db error: {:?}", err);
             StatusCode::INTERNAL_SERVER_ERROR.into_response()

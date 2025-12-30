@@ -1,24 +1,20 @@
+use crate::http::routes;
 use std::env;
 use axum::Router;
 use sea_orm::{Database};
 use tokio::net::TcpListener;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use crate::db::Db;
-mod routes;
 mod db;
 mod entity;
 mod http;
 
 #[tokio::main]
 async fn main() {
-    // --------------------------------------------------
-    // Load .env
-    // --------------------------------------------------
+
     dotenv::dotenv().ok();
 
-    // --------------------------------------------------
-    // Logging
-    // --------------------------------------------------
+
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer())
         .with(
@@ -27,9 +23,7 @@ async fn main() {
         )
         .init();
 
-    // --------------------------------------------------
-    // Database
-    // --------------------------------------------------
+
     let database_url =
         env::var("DATABASE_URL").expect("DATABASE_URL must be set");
 
@@ -39,14 +33,9 @@ async fn main() {
 
     tracing::info!("Database connected");
 
-    // --------------------------------------------------
-    // Router (state-aware)
-    // --------------------------------------------------
     let app: Router = routes::routes().with_state(db);
 
-    // --------------------------------------------------
-    // HTTP server (Axum 0.8)
-    // --------------------------------------------------
+ 
     let listener = TcpListener::bind("0.0.0.0:3000")
         .await
         .expect("Failed to bind port");
