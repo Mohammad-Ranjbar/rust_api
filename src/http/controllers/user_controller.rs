@@ -1,7 +1,6 @@
 use axum::{
     extract::State,
-    http::StatusCode,
-    response::IntoResponse,
+    extract::Path,
     Json,
 };
 
@@ -11,14 +10,18 @@ use crate::db::Db;
 use crate::entity::user;
 use crate::http::requests::user_request::CreateUserRequest;
 use crate::http::responses::user_response::UserResponse;
+use crate::http::errors::api_error::ApiError;
+use crate::http::helpers::parse::parse_id;
 
 pub async fn store(
     State(db): State<Db>,
     Json(payload): Json<CreateUserRequest>,
-) -> impl IntoResponse {
-    if payload.validate().is_err() {
-        return StatusCode::UNPROCESSABLE_ENTITY.into_response();
-    }
+) -> Result<Json<UserResponse>, ApiError> {
+    payload
+        .validate()
+        .map_err(|_| ApiError::UnprocessableEntity(
+            "Invalid input data".to_string(),
+        ))?;
 
     let user = user::ActiveModel {
         title: Set(payload.title),
@@ -26,37 +29,45 @@ pub async fn store(
         ..Default::default()
     };
 
-    match user.insert(&db).await {
-Ok(model) => {
-        let response: UserResponse = model.into();
-        (StatusCode::CREATED, Json(response)).into_response()
-                    },
-        Err(err) => {
-            tracing::error!("db error: {:?}", err);
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
-    }
+    let model = user.insert(&db).await.map_err(|err| {
+        tracing::error!("db error: {:?}", err);
+        ApiError::internal(None)
+    })?;
+
+    Ok(Json(model.into()))
 }
+
 
 
 pub async fn index(
     State(db): State<Db>,
-) -> impl IntoResponse {
-    match user::Entity::find()
+) -> Result<Json<Vec<UserResponse>>, ApiError> {
+    let models = user::Entity::find()
         .order_by_desc(user::Column::CreatedAt)
         .all(&db)
         .await
-    {
-        Ok(models) => {
-            // تبدیل Model ها به Resource ها
-            let data: Vec<UserResponse> =
-                models.into_iter().map(Into::into).collect();
-
-            (StatusCode::OK, Json(data)).into_response()
-        }
-        Err(err) => {
+        .map_err(|err| {
             tracing::error!("db error: {:?}", err);
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
-    }
+            ApiError::internal(None)
+        })?;
+
+    let data = models.into_iter().map(Into::into).collect();
+
+    Ok(Json(data))
+}
+
+pub async fn show(
+    State(db): State<Db>,
+    Path(id): Path<String>,
+) -> Result<Json<UserResponse>, ApiError> {
+    let id = parse_id(&id)?;
+
+    let model = user::Entity::find_by_id(id)
+        .one(&db)
+        .await
+        .map_err(|_| ApiError::internal(None))?;
+
+    let model = model.ok_or_else(|| ApiError::NotFound("User not available".to_string()))?;
+
+    Ok(Json(model.into()))
 }
