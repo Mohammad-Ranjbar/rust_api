@@ -6,9 +6,15 @@ use crate::entity::user;
 #[derive(Serialize)]
 pub struct UserResponse {
     pub id: i32,
-    pub title: String,
-    pub text: Option<String>,
+
+    pub mobile: String,
+
+    pub name: Option<String>,
+
+    pub family: Option<String>,
+
     pub created_at: String,
+
     pub updated_at: String,
 }
 
@@ -16,8 +22,9 @@ impl From<user::Model> for UserResponse {
     fn from(model: user::Model) -> Self {
         Self {
             id: model.id,
-            title: model.title,
-            text: model.text,
+            mobile: model.mobile,
+            name: model.name,
+            family: model.family,
             created_at: model
                 .created_at
                 .with_timezone(&Tehran)

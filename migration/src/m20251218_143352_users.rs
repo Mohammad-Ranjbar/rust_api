@@ -12,8 +12,10 @@ impl MigrationTrait for Migration {
                     .table(User::Table)
                     .if_not_exists()
                     .col(pk_auto(User::Id))
-                    .col(string(User::Title).not_null().unique_key())
-                    .col(string(User::Text))
+                    .col(string(User::Mobile).not_null().unique_key())
+                    .col(string_null(User::Name))
+                    .col(string_null(User::Family))
+                    .col(string(User::PasswordHash).not_null())
                     .col(ColumnDef::new(User::CreatedAt)
                         .timestamp()
                         .default(Expr::current_timestamp())
@@ -40,8 +42,10 @@ enum User {
     #[sea_orm(iden = "users")]
     Table,
     Id,
-    Title,
-    Text,
+    Mobile,
+    Name,
+    Family,
+    PasswordHash,
     CreatedAt,
     UpdatedAt,
 }

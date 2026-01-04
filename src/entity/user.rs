@@ -9,7 +9,11 @@ pub struct Model {
     pub id: i32,
 
     pub title: String,
-    pub text: Option<String>,
+    pub name: Option<String>,
+    pub family: Option<String>,
+
+    pub mobile: String,
+    pub password_hash: String, 
 
     pub created_at: DateTimeUtc,
     pub updated_at: DateTimeUtc,

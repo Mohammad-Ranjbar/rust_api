@@ -24,8 +24,9 @@ pub async fn store(
         ))?;
 
     let user = user::ActiveModel {
-        title: Set(payload.title),
-        text: Set(payload.text),
+        mobile: Set(payload.mobile),
+        name: Set(payload.name),
+        family: Set(payload.family),
         ..Default::default()
     };
 
@@ -57,10 +58,14 @@ pub async fn update(
 
     let mut active: user::ActiveModel = model.into();
 
-    active.title = Set(payload.title);
+    active.mobile = Set(payload.mobile);
 
-    if let Some(text) = payload.text {
-        active.text = Set(Some(text));
+    if let Some(name) = payload.name {
+        active.name = Set(Some(name));
+    }
+
+        if let Some(family) = payload.family {
+        active.family = Set(Some(family));
     }
 
     // save
