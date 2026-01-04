@@ -8,8 +8,8 @@ const JWT_SECRET: &str = "your_super_secret_key_please_change";
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
-    sub: String, // User ID
-    exp: usize,  // Expiration time
+    sub: String, 
+    exp: usize,
 }
 
 pub struct AuthService;
