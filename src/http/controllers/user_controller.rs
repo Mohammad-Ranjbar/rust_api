@@ -12,6 +12,7 @@ use crate::http::requests::user_request::{CreateUserRequest,UpdateUserRequest};
 use crate::http::responses::user_response::UserResponse;
 use crate::http::errors::api_error::ApiError;
 use crate::http::helpers::parse::parse_id;
+use crate::http::services::auth_service::AuthService;
 
 pub async fn store(
     State(db): State<Db>,
@@ -23,10 +24,13 @@ pub async fn store(
             "Invalid input data".to_string(),
         ))?;
 
+    let password_hash = AuthService::hash_password(&payload.password)
+        .map_err(|_| ApiError::internal(None))?;
     let user = user::ActiveModel {
         mobile: Set(payload.mobile),
         name: Set(payload.name),
         family: Set(payload.family),
+        password_hash:Set(password_hash),
         ..Default::default()
     };
 
@@ -48,7 +52,7 @@ pub async fn update(
         .validate()
         .map_err(|_| ApiError::UnprocessableEntity("Invalid data".to_string()))?;
 
-    let id = parse_id(&id)?;
+    let id: i32 = parse_id(&id)?;
 
     let model = user::Entity::find_by_id(id)
         .one(&db)

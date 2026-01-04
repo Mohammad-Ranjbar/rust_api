@@ -21,11 +21,9 @@ pub async fn register(
         "Invalid input data".to_string(),
     ))?;
 
-    // Hash the password
     let password_hash = AuthService::hash_password(&payload.password)
         .map_err(|_| ApiError::internal(None))?;
 
-    // Create User
     let user = user_entity::ActiveModel {
         mobile: Set(payload.mobile.clone()),
         name: Set(payload.name),
