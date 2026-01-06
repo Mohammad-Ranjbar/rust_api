@@ -31,3 +31,4 @@ chrono="0.4.42"
 thiserror = "1.0" 
 
 uuid = { version = "1.6", features = ["v4", "serde"] }
+anyhow = "1.0.100"

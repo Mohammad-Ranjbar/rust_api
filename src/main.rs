@@ -4,32 +4,32 @@ use axum::Router;
 use sea_orm::Database;
 use tokio::net::TcpListener;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-
+use dotenv::dotenv;
 use crate::db::Db;
-use crate::http::services::auth_service::AuthService;
 
 mod db;
 mod entity;
 mod http;
 
+
 #[derive(Clone)]
 pub struct AppState {
     pub db: Db,
-    pub auth_service: AuthService,
+
 }
 
 impl AppState {
     pub fn new(db: Db, jwt_secret: String) -> Self {
         Self {
             db,
-            auth_service: AuthService::new(jwt_secret, 15, 7),
+          
         }
     }
 }
 
 #[tokio::main]
 async fn main() {
-    dotenv::dotenv().ok();
+    dotenv().ok();
 
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer())

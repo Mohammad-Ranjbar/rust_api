@@ -18,9 +18,7 @@ pub async fn store(
 ) -> Result<Json<UserResponse>, ApiError> {
     payload
         .validate()
-        .map_err(|_| ApiError::UnprocessableEntity(
-            "Invalid input data".to_string(),
-        ))?;
+        .map_err(|_| ApiError::unprocessable())?;
 
     let password_hash = AuthService::hash_password(&payload.password)
         .map_err(|err| {
@@ -52,7 +50,7 @@ pub async fn update(
 
     payload
         .validate()
-        .map_err(|_| ApiError::UnprocessableEntity("Invalid data".to_string()))?;
+        .map_err(|_| ApiError::unprocessable())?;
 
     let id: i32 = parse_id(&id)?;
     let db = &state.db;
@@ -63,7 +61,7 @@ pub async fn update(
             tracing::error!("Database error: {:?}", err);
             ApiError::internal(None)
         })?
-        .ok_or_else(|| ApiError::NotFound("User not available".to_string()))?;
+        .ok_or_else(|| ApiError::not_found())?;
 
     let mut active: user::ActiveModel = model.into();
 
@@ -77,7 +75,6 @@ pub async fn update(
         active.family = Set(Some(family));
     }
 
-    let db = &state.db;
     let updated = active
         .update(db)
         .await
@@ -119,9 +116,8 @@ pub async fn show(
         .map_err(|err| {
             tracing::error!("Database error: {:?}", err);
             ApiError::internal(None)
-        })?;
-
-    let model = model.ok_or_else(|| ApiError::NotFound("User not available".to_string()))?;
+        })?
+        .ok_or_else(|| ApiError::not_found())?;
 
     Ok(Json(model.into()))
 }
@@ -138,12 +134,10 @@ pub async fn delete(
         .map_err(|err| {
             tracing::error!("Database error: {:?}", err);
             ApiError::internal(None)
-        })?;
-
-    let model = model.ok_or_else(|| ApiError::NotFound("User not available".to_string()))?;
+        })?
+        .ok_or_else(|| ApiError::not_found())?;
     
     let active: user::ActiveModel = model.clone().into();
-    let db = &state.db;
     active.delete(db).await.map_err(|err| {
         tracing::error!("Delete error: {:?}", err);
         ApiError::internal(None)
