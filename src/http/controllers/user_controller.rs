@@ -1,21 +1,19 @@
 use axum::{
-    extract::State,
-    extract::Path,
+    extract::{State, Path},
     Json,
 };
-
-use sea_orm::{ActiveModelTrait, Set,EntityTrait,QueryOrder};
+use crate::AppState;
+use sea_orm::{ActiveModelTrait, Set, EntityTrait, QueryOrder};
 use validator::Validate;
-use crate::db::Db;
 use crate::entity::user;
-use crate::http::requests::user_request::{CreateUserRequest,UpdateUserRequest};
+use crate::http::requests::user_request::{CreateUserRequest, UpdateUserRequest};
 use crate::http::responses::user_response::UserResponse;
 use crate::http::errors::api_error::ApiError;
 use crate::http::helpers::parse::parse_id;
 use crate::http::services::auth_service::AuthService;
 
 pub async fn store(
-    State(db): State<Db>,
+    State(state): State<AppState>,
     Json(payload): Json<CreateUserRequest>,
 ) -> Result<Json<UserResponse>, ApiError> {
     payload
@@ -25,16 +23,20 @@ pub async fn store(
         ))?;
 
     let password_hash = AuthService::hash_password(&payload.password)
-        .map_err(|_| ApiError::internal(None))?;
+        .map_err(|err| {
+            tracing::error!("Failed to hash password: {:?}", err);
+            ApiError::internal(None)
+        })?;
+    
     let user = user::ActiveModel {
         mobile: Set(payload.mobile),
         name: Set(payload.name),
         family: Set(payload.family),
-        password_hash:Set(password_hash),
+        password_hash: Set(password_hash),
         ..Default::default()
     };
-
-    let model = user.insert(&db).await.map_err(|err| {
+    let db = &state.db;
+    let model = user.insert(db).await.map_err(|err| {
         tracing::error!("db error: {:?}", err);
         ApiError::internal(None)
     })?;
@@ -43,7 +45,7 @@ pub async fn store(
 }
 
 pub async fn update(
-    State(db): State<Db>,
+    State(state): State<AppState>,
     Path(id): Path<String>,
     Json(payload): Json<UpdateUserRequest>,
 ) -> Result<Json<UserResponse>, ApiError> {
@@ -53,11 +55,14 @@ pub async fn update(
         .map_err(|_| ApiError::UnprocessableEntity("Invalid data".to_string()))?;
 
     let id: i32 = parse_id(&id)?;
-
+    let db = &state.db;
     let model = user::Entity::find_by_id(id)
-        .one(&db)
+        .one(db)
         .await
-        .map_err(|_| ApiError::internal(None))?
+        .map_err(|err| {
+            tracing::error!("Database error: {:?}", err);
+            ApiError::internal(None)
+        })?
         .ok_or_else(|| ApiError::NotFound("User not available".to_string()))?;
 
     let mut active: user::ActiveModel = model.into();
@@ -68,25 +73,29 @@ pub async fn update(
         active.name = Set(Some(name));
     }
 
-        if let Some(family) = payload.family {
+    if let Some(family) = payload.family {
         active.family = Set(Some(family));
     }
 
-    // save
+    let db = &state.db;
     let updated = active
-        .update(&db)
+        .update(db)
         .await
-        .map_err(|_| ApiError::internal(None))?;
+        .map_err(|err| {
+            tracing::error!("Update error: {:?}", err);
+            ApiError::internal(None)
+        })?;
 
     Ok(Json(updated.into()))
 }
 
 pub async fn index(
-    State(db): State<Db>,
+    State(state): State<AppState>,
 ) -> Result<Json<Vec<UserResponse>>, ApiError> {
+    let db = &state.db;
     let models = user::Entity::find()
         .order_by_desc(user::Column::CreatedAt)
-        .all(&db)
+        .all(db)
         .await
         .map_err(|err| {
             tracing::error!("db error: {:?}", err);
@@ -99,15 +108,18 @@ pub async fn index(
 }
 
 pub async fn show(
-    State(db): State<Db>,
+    State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<UserResponse>, ApiError> {
     let id = parse_id(&id)?;
-
+    let db = &state.db;
     let model = user::Entity::find_by_id(id)
-        .one(&db)
+        .one(db)
         .await
-        .map_err(|_| ApiError::internal(None))?;
+        .map_err(|err| {
+            tracing::error!("Database error: {:?}", err);
+            ApiError::internal(None)
+        })?;
 
     let model = model.ok_or_else(|| ApiError::NotFound("User not available".to_string()))?;
 
@@ -115,21 +127,27 @@ pub async fn show(
 }
 
 pub async fn delete(
-    State(db): State<Db>,
+    State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<UserResponse>, ApiError> {
     let id = parse_id(&id)?;
-
+    let db = &state.db;
     let model = user::Entity::find_by_id(id)
-        .one(&db)
+        .one(db)
         .await
-        .map_err(|_| ApiError::internal(None))?;
+        .map_err(|err| {
+            tracing::error!("Database error: {:?}", err);
+            ApiError::internal(None)
+        })?;
 
     let model = model.ok_or_else(|| ApiError::NotFound("User not available".to_string()))?;
     
-    let active:user::ActiveModel = model.clone().into();
-    
-    active.delete(&db).await.map_err(|_| ApiError::internal(None))?;
+    let active: user::ActiveModel = model.clone().into();
+    let db = &state.db;
+    active.delete(db).await.map_err(|err| {
+        tracing::error!("Delete error: {:?}", err);
+        ApiError::internal(None)
+    })?;
     
     Ok(Json(model.into()))
 }

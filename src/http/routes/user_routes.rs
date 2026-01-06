@@ -1,15 +1,23 @@
-use crate::db::Db;
-use crate::http::controllers::user_controller;
 use axum::{
     Router,
-    routing::{get, post},
+    routing::get,
+};
+use crate::{
+    AppState,
+    http::controllers::user_controller,
 };
 
-pub fn routes() -> Router<Db> {
+pub fn routes() -> Router<AppState> {
     Router::new()
         .route(
             "/users",
-            post(user_controller::store).get(user_controller::index),
+            get(user_controller::index)
+                .post(user_controller::store),
         )
-        .route("/users/{id}", get(user_controller::show).put(user_controller::update).delete(user_controller::delete))
+        .route(
+            "/users/{id}",
+            get(user_controller::show)
+                .put(user_controller::update)
+                .delete(user_controller::delete),
+        )
 }
