@@ -16,7 +16,6 @@ impl AuthService {
         Self { jwt_secret }
     }
 
-    // hash_password و verify_password را static نگه دارید
     pub fn hash_password(password: &str) -> Result<String, argon2::password_hash::Error> {
         let salt = SaltString::generate(&mut OsRng);
         let argon2 = Argon2::default(); // Argon2id, safe defaults
@@ -27,6 +26,7 @@ impl AuthService {
     }
 
     pub fn verify_password(
+        &self,
         password: &str,
         password_hash: &str,
     ) -> Result<bool, argon2::password_hash::Error> {
@@ -38,7 +38,6 @@ impl AuthService {
         )
     }
 
-    // متد ایجاد JWT
     pub fn create_token(&self, user_id: i32) -> Result<String, jsonwebtoken::errors::Error> {
         #[derive(serde::Serialize)]
         struct Claims {

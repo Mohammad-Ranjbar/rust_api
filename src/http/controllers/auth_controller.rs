@@ -3,9 +3,7 @@ use crate::entity::user;
 use crate::http::errors::api_error::ApiError;
 use crate::http::requests::auth_request::LoginRequest;
 use crate::http::responses::auth_response::LoginResponse;
-use crate::http::services::auth_service::AuthService;
 use axum::{Json, extract::State};
-use chrono::Utc;
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 use validator::Validate;
 
@@ -27,7 +25,9 @@ pub async fn login(
         })?
         .ok_or_else(ApiError::unauthorized)?;
 
-    let is_valid = AuthService::verify_password(&payload.password, &user_model.password_hash)
+    let is_valid = state
+        .auth_service
+        .verify_password(&payload.password, &user_model.password_hash)
         .map_err(|err| {
             tracing::error!("Password verify error: {:?}", err);
             ApiError::internal(None)
@@ -36,17 +36,6 @@ pub async fn login(
     if !is_valid {
         return Err(ApiError::unauthorized());
     }
-
-    #[derive(serde::Serialize)]
-    struct Claims {
-        sub: i32,
-        exp: usize,
-    }
-
-    let claims = Claims {
-        sub: user_model.id,
-        exp: (Utc::now().timestamp() + 3600) as usize, // 1 hour
-    };
 
     let token = state
         .auth_service

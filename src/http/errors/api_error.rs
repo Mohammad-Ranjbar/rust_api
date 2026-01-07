@@ -6,6 +6,7 @@ use axum::{
 use serde::Serialize;
 
 #[derive(Debug)]
+
 pub enum ApiError {
     BadRequest(Option<String>),
     Unauthorized(Option<String>),
@@ -19,9 +20,8 @@ pub enum ApiError {
 struct ErrorResponse {
     message: String,
 }
-
+#[allow(dead_code)]
 impl ApiError {
-    // پیام پیش‌فرض هر نوع خطا
     fn default_message(&self) -> &'static str {
         match self {
             ApiError::BadRequest(_) => "Bad request",
@@ -33,7 +33,6 @@ impl ApiError {
         }
     }
 
-    // پیام قابل ارسال در JSON
     pub fn message(&self) -> String {
         match self {
             ApiError::BadRequest(msg)
@@ -47,7 +46,6 @@ impl ApiError {
         }
     }
 
-    // ===== Constructors برای راحتی =====
     pub fn bad_request() -> Self { Self::BadRequest(None) }
     pub fn bad_request_msg(msg: impl Into<String>) -> Self { Self::BadRequest(Some(msg.into())) }
 
