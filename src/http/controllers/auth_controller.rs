@@ -3,10 +3,25 @@ use crate::entity::user;
 use crate::http::errors::api_error::ApiError;
 use crate::http::requests::auth_request::LoginRequest;
 use crate::http::responses::auth_response::LoginResponse;
+use crate::http::responses::user_response::UserResponse;
 use axum::{Json, extract::State};
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 use validator::Validate;
+use axum::extract::Extension;
 
+
+pub async fn profile(
+    State(state): State<AppState>,
+    axum::extract::Extension(user_id): axum::extract::Extension<i32>,
+) -> Result<Json<UserResponse>, ApiError> {
+    let user_model = user::Entity::find_by_id(user_id)
+        .one(&state.db)
+        .await
+        .map_err(|_| ApiError::internal(None))?
+        .ok_or_else(ApiError::not_found)?;
+
+    Ok(Json(user_model.into()))
+}
 pub async fn login(
     State(state): State<AppState>,
     Json(payload): Json<LoginRequest>,
