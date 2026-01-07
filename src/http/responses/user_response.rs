@@ -3,7 +3,7 @@ use chrono_tz::Asia::Tehran;
 
 use crate::entity::user;
 
-#[derive(Serialize)]
+#[derive(Debug,Serialize)]
 pub struct UserResponse {
     pub id: i32,
 

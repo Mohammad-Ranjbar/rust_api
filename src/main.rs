@@ -6,26 +6,12 @@ use tokio::net::TcpListener;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use dotenv::dotenv;
 use crate::db::Db;
+use crate::app_state::AppState;
+pub mod app_state;
 
 mod db;
 mod entity;
 mod http;
-
-
-#[derive(Clone)]
-pub struct AppState {
-    pub db: Db,
-
-}
-
-impl AppState {
-    pub fn new(db: Db, jwt_secret: String) -> Self {
-        Self {
-            db,
-          
-        }
-    }
-}
 
 #[tokio::main]
 async fn main() {
@@ -51,7 +37,6 @@ async fn main() {
 
     tracing::info!("Database connected");
 
-    // 👇 این خط کلیدی است
     let state = AppState::new(db, jwt_secret);
 
     let app: Router = routes::routes()

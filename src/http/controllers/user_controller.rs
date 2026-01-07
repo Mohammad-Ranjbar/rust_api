@@ -2,7 +2,7 @@ use axum::{
     extract::{State, Path},
     Json,
 };
-use crate::AppState;
+use crate::app_state::AppState;
 use sea_orm::{ActiveModelTrait, Set, EntityTrait, QueryOrder};
 use validator::Validate;
 use crate::entity::user;

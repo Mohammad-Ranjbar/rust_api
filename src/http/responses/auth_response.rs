@@ -1,8 +1,8 @@
 use serde::Serialize;
+use crate::http::responses::user_response::UserResponse;
 
-#[derive(Serialize)]
-pub struct TokenPairResponse {
-    pub access_token: String,
-    pub refresh_token: String,
-    pub token_type: String,
+#[derive(Debug, Serialize)]
+pub struct LoginResponse {
+    pub token: String,
+    pub user: UserResponse,
 }
