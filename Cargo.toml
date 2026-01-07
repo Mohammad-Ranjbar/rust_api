@@ -33,5 +33,5 @@ thiserror = "1.0"
 uuid = { version = "1.6", features = ["v4", "serde"] }
 anyhow = "1.0.100"
 
-argon2 = "0.5"
+argon2 = "0.5.3"
 rand_core = "0.6"

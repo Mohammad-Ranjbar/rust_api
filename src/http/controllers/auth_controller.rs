@@ -1,26 +1,19 @@
-use axum::{
-    extract::State,
-    Json,
-};
-use sea_orm::{EntityTrait, QueryFilter,ColumnTrait};
-use validator::Validate;
 use crate::app_state::AppState;
 use crate::entity::user;
+use crate::http::errors::api_error::ApiError;
 use crate::http::requests::auth_request::LoginRequest;
 use crate::http::responses::auth_response::LoginResponse;
-use crate::http::errors::api_error::ApiError;
 use crate::http::services::auth_service::AuthService;
-use jsonwebtoken::{encode, EncodingKey, Header};
+use axum::{Json, extract::State};
 use chrono::Utc;
+use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+use validator::Validate;
 
 pub async fn login(
     State(state): State<AppState>,
     Json(payload): Json<LoginRequest>,
 ) -> Result<Json<LoginResponse>, ApiError> {
-
-    payload
-        .validate()
-        .map_err(|_| ApiError::unprocessable())?;
+    payload.validate().map_err(|_| ApiError::unprocessable())?;
 
     let db = &state.db;
 
@@ -34,10 +27,7 @@ pub async fn login(
         })?
         .ok_or_else(ApiError::unauthorized)?;
 
-    let is_valid = AuthService::verify_password(
-        &payload.password,
-        &user_model.password_hash,
-    )
+    let is_valid = AuthService::verify_password(&payload.password, &user_model.password_hash)
         .map_err(|err| {
             tracing::error!("Password verify error: {:?}", err);
             ApiError::internal(None)

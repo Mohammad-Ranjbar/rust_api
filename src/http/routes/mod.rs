@@ -7,4 +7,5 @@ pub mod auth_routes;
 pub fn routes() -> Router<AppState> {
     Router::new()
         .merge(user_routes::routes())
+        .merge(auth_routes::routes())
 }
