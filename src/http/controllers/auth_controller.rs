@@ -12,7 +12,7 @@ use axum::extract::Extension;
 
 pub async fn profile(
     State(state): State<AppState>,
-    axum::extract::Extension(user_id): axum::extract::Extension<i32>,
+    Extension(user_id): Extension<i32>,
 ) -> Result<Json<UserResponse>, ApiError> {
     let user_model = user::Entity::find_by_id(user_id)
         .one(&state.db)

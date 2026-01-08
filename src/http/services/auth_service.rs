@@ -4,18 +4,12 @@ use argon2::{
 };
 use rand_core::OsRng;
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
-use serde::{Serialize, Deserialize};
 use chrono::Utc;
+use crate::http::types::claims::Claims;
 
 #[derive(Clone, Debug)]
 pub struct AuthService {
     jwt_secret: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Claims {
-    pub sub: i32,
-    pub exp: usize,
 }
 
 impl AuthService {
@@ -23,11 +17,10 @@ impl AuthService {
         Self { jwt_secret }
     }
 
-    // ---------- JWT ----------
     pub fn create_token(&self, user_id: i32) -> Result<String, jsonwebtoken::errors::Error> {
         let claims = Claims {
             sub: user_id,
-            exp: (Utc::now().timestamp() + 3600) as usize, // 1 ساعت اعتبار
+            exp: (Utc::now().timestamp() + 3600) as usize,
         };
 
         encode(
@@ -46,7 +39,6 @@ impl AuthService {
         Ok(data.claims.sub)
     }
 
-    // ---------- PASSWORD ----------
     pub fn hash_password(password: &str) -> Result<String, argon2::password_hash::Error> {
         let salt = SaltString::generate(&mut OsRng);
         let argon2 = Argon2::default();

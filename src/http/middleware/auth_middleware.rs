@@ -6,8 +6,8 @@ use axum::{
 };
 use jsonwebtoken::{decode, DecodingKey, Validation};
 use std::sync::OnceLock;
+use crate::http::types::claims::Claims;
 
-// 👈 یک بار global JWT secret
 static JWT_SECRET: OnceLock<String> = OnceLock::new();
 
 pub fn set_jwt_secret(secret: String) {
@@ -27,8 +27,7 @@ pub async fn auth_middleware(
         Some(t) => t,
         None => return StatusCode::UNAUTHORIZED.into_response(),
     };
-
-    // decode JWT
+    
     let secret = JWT_SECRET.get().expect("JWT_SECRET not set");
 
     let user_id = match decode::<Claims>(
@@ -43,11 +42,4 @@ pub async fn auth_middleware(
     req.extensions_mut().insert(user_id);
 
     next.run(req).await
-}
-
-use serde::{Serialize, Deserialize};
-#[derive(Debug, Serialize, Deserialize)]
-struct Claims {
-    sub: i32,
-    exp: usize,
 }
