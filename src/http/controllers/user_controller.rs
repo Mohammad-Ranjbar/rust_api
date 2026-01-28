@@ -7,10 +7,46 @@ use sea_orm::{ActiveModelTrait, Set, EntityTrait, QueryOrder};
 use validator::Validate;
 use crate::entity::user;
 use crate::http::requests::user_request::{CreateUserRequest, UpdateUserRequest};
+use crate::http::requests::update_profile_request::UpdateProfileRequest;
 use crate::http::responses::user_response::UserResponse;
 use crate::http::errors::api_error::ApiError;
 use crate::http::helpers::parse::parse_id;
 use crate::http::services::auth_service::AuthService;
+use axum::extract::Extension;
+
+pub async fn update_profile(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<i32>,
+    Json(payload): Json<UpdateProfileRequest>,
+) -> Result<Json<UserResponse>, ApiError> {
+    payload.validate().map_err(|_| ApiError::unprocessable())?;
+
+    let user_model = user::Entity::find_by_id(user_id)
+        .one(&state.db)
+        .await
+        .map_err(|_| ApiError::internal(None))?
+        .ok_or_else(ApiError::not_found)?;
+
+    let mut user_active: user::ActiveModel = user_model.into();
+
+    if let Some(name) = payload.name {
+        user_active.name = Set(Some(name));
+    }
+
+    if let Some(family) = payload.family {
+        user_active.family = Set(Some(family));
+    }
+
+    let updated_user = user_active
+        .update(&state.db)
+        .await
+        .map_err(|err| {
+            tracing::error!("User update error: {:?}", err);
+            ApiError::internal(None)
+        })?;
+
+    Ok(Json(updated_user.into()))
+}
 
 pub async fn store(
     State(state): State<AppState>,
