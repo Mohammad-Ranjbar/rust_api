@@ -2,10 +2,10 @@ use argon2::{
     password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
     Argon2,
 };
-use rand_core::OsRng;
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
 use chrono::Utc;
 use crate::http::types::claims::Claims;
+use rand_core::{OsRng, RngCore};
 
 #[derive(Clone, Debug)]
 pub struct AuthService {
@@ -13,6 +13,13 @@ pub struct AuthService {
 }
 
 impl AuthService {
+
+    pub fn generate_refresh_token(&self) -> String {
+        let mut bytes = [0u8; 64];
+        OsRng.fill_bytes(&mut bytes);
+        base64::encode(bytes)
+    }
+
     pub fn new(jwt_secret: String) -> Self {
         Self { jwt_secret }
     }
