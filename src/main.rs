@@ -7,6 +7,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use dotenv::dotenv;
 use crate::db::Db;
 use crate::app_state::AppState;
+use std::net::SocketAddr;
 pub mod app_state;
 
 mod db;
@@ -49,7 +50,7 @@ async fn main() {
 
     tracing::info!("Server running on http://0.0.0.0:3000");
 
-    axum::serve(listener, app)
+    axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
         .await
         .unwrap();
 }

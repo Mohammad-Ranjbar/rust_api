@@ -12,6 +12,9 @@ use axum::extract::Extension;
 use crate::entity::refresh_token;
 use sea_orm::{ActiveModelTrait, Set};
 use chrono::{Utc, Duration};
+use axum::extract::ConnectInfo;
+use axum::http::HeaderMap;
+use std::net::SocketAddr;
 
 
 pub async fn refresh_token(
@@ -96,6 +99,8 @@ pub async fn profile(
 }
 pub async fn login(
     State(state): State<AppState>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
     Json(payload): Json<LoginRequest>,
 ) -> Result<Json<LoginResponse>, ApiError> {
     payload.validate().map_err(|_| ApiError::unprocessable())?;
@@ -126,9 +131,16 @@ pub async fn login(
     let refresh_token_value = state.auth_service.generate_refresh_token();
 
     // 3️⃣ ذخیره refresh token
+    let issued = state
+    .auth_service
+    .issue_tokens(user_model.id, &headers, &addr)
+    .map_err(|_| ApiError::internal(None))?;
     let refresh_active = refresh_token::ActiveModel {
         token: Set(refresh_token_value.clone()),
         user_id: Set(user_model.id),
+        device_id: Set(issued.session.device_id),
+        ip_address: Set(issued.session.ip_address),
+        user_agent: Set(issued.session.user_agent),
         expires_at: Set(
             (Utc::now() + Duration::days(30)).into()
         ),

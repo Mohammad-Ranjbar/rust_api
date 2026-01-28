@@ -6,6 +6,9 @@ use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation}
 use chrono::Utc;
 use crate::http::types::claims::Claims;
 use rand_core::{OsRng, RngCore};
+use axum::http::HeaderMap;
+use std::net::SocketAddr;
+use crate::http::types::session::{SessionInfo,IssuedTokens};
 
 #[derive(Clone, Debug)]
 pub struct AuthService {
@@ -13,6 +16,47 @@ pub struct AuthService {
 }
 
 impl AuthService {
+
+        pub fn issue_tokens(
+        &self,
+        user_id: i32,
+        headers: &HeaderMap,
+        addr: &SocketAddr,
+    ) -> Result<IssuedTokens, jsonwebtoken::errors::Error> {
+        let access_token = self.create_token(user_id)?;
+        let refresh_token = self.generate_refresh_token();
+        let session = self.extract_session_info(headers, addr);
+
+        Ok(IssuedTokens {
+            access_token,
+            refresh_token,
+            session,
+        })
+    }
+
+     pub fn extract_session_info(
+        &self,
+        headers: &HeaderMap,
+        addr: &SocketAddr,
+    ) -> SessionInfo {
+        let device_id = headers
+            .get("x-device-id")
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.to_string());
+
+        let user_agent = headers
+            .get(axum::http::header::USER_AGENT)
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.to_string());
+
+        let ip_address = Some(addr.ip().to_string());
+
+        SessionInfo {
+            device_id,
+            ip_address,
+            user_agent,
+        }
+    }
 
     pub fn generate_refresh_token(&self) -> String {
         let mut bytes = [0u8; 64];
