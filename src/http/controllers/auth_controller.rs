@@ -11,8 +11,6 @@ use crate::http::requests::refresh_token_request::RefreshTokenRequest;
 use crate::http::responses::auth_response::{LoginResponse, RefreshTokenResponse};
 use crate::entity::{user, refresh_token};
 
-/// POST /login
-/// POST /login
 pub async fn login(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -32,11 +30,9 @@ pub async fn login(
         return Err(ApiError::unauthorized_msg("Invalid password"));
     }
 
-    // issue tokens
     let tokens = state.auth_service.issue_tokens(user_model.id, &headers, &std::net::SocketAddr::from(([127,0,0,1],0)))
         .map_err(|_| ApiError::internal(None))?;
 
-    // store refresh token hashed in DB
     let refresh_hash = state.auth_service.hash_refresh_token(&tokens.refresh_token);
     let refresh_model = refresh_token::ActiveModel {
         user_id: Set(user_model.id),
@@ -44,7 +40,7 @@ pub async fn login(
         device_id: Set(tokens.session.device_id.clone()),
         ip_address: Set(tokens.session.ip_address.clone()),
         user_agent: Set(tokens.session.user_agent.clone()),
-        expires_at: Set(Utc::now()), // adjust type to DateTime<Utc>
+        expires_at: Set(Utc::now()), 
         ..Default::default()
     };
     refresh_model.insert(&state.db).await.map_err(|_| ApiError::internal(None))?;
@@ -52,11 +48,11 @@ pub async fn login(
     Ok(Json(LoginResponse {
         access_token: tokens.access_token,
         refresh_token: tokens.refresh_token,
-        user: user_model.into(), // convert Model -> UserResponse
+        user: user_model.into(), 
     }))
 }
 
-/// POST /refresh-token
+
 pub async fn refresh_token(
     State(state): State<AppState>,
     Json(payload): Json<RefreshTokenRequest>,
@@ -76,7 +72,7 @@ pub async fn refresh_token(
     Ok(Json(RefreshTokenResponse { access_token }))
 }
 
-/// GET /profile
+
 pub async fn profile(
     State(state): State<AppState>,
     Extension(user_id): Extension<i32>,
