@@ -1966,6 +1966,7 @@ dependencies = [
  "rand_core",
  "sea-orm",
  "serde",
+ "sha2",
  "tokio",
  "tracing",
  "tracing-subscriber",

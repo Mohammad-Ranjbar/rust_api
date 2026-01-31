@@ -7,3 +7,10 @@ pub struct LoginResponse {
     pub refresh_token: String,
     pub user: UserResponse,
 }
+
+#[derive(Debug, Serialize)]
+pub struct RefreshTokenResponse {
+    pub access_token: String,
+    // Optional: include refresh token if you rotate it
+    // pub refresh_token: Option<String>,
+}

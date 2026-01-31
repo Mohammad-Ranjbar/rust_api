@@ -8,7 +8,7 @@ pub struct Model {
     pub id: i32,
 
     #[sea_orm(unique)]
-    pub token: String, 
+    pub token_hash: String, 
 
     pub user_id: i32,
     

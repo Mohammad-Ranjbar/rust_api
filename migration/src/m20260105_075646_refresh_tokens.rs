@@ -12,7 +12,7 @@ impl MigrationTrait for Migration {
                     .table(RefreshTokens::Table)
                     .if_not_exists()
                     .col(pk_auto(RefreshTokens::Id))
-                    .col(string(RefreshTokens::Token).unique_key().not_null())
+                    .col(string(RefreshTokens::TokenHash).unique_key().not_null())
                     .col(integer(RefreshTokens::UserId).not_null())
                     .col(string(RefreshTokens::DeviceId).null())
                     .col(string(RefreshTokens::IpAddress).null())
@@ -44,7 +44,7 @@ impl MigrationTrait for Migration {
 enum RefreshTokens {
     Table,
     Id,
-    Token,
+    TokenHash,
     UserId,
     DeviceId,
     IpAddress,
