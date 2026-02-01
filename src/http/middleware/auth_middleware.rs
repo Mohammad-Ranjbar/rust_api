@@ -3,7 +3,6 @@ use axum::{
     http::{Request, StatusCode},
     middleware::Next,
     response::IntoResponse,
-    extract::Extension,
 };
 use jsonwebtoken::{decode, DecodingKey, Validation};
 use chrono::Utc;

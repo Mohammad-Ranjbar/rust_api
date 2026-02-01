@@ -16,20 +16,15 @@ impl AuthService {
     pub fn new(jwt_secret: String) -> Self {
         Self { jwt_secret }
     }
-
-    /// هش سریع SHA256 برای پسورد یا توکن
     pub fn hash_password(password: &str) -> String {
         let mut hasher = Sha256::new();
         hasher.update(password.as_bytes());
         STANDARD.encode(hasher.finalize())
     }
-
-    /// بررسی پسورد با هش SHA256
     pub fn verify_password(&self, password: &str, hash: &str) -> bool {
         Self::hash_password(password) == hash
     }
 
-    /// تولید توکن JWT
     pub fn create_token(&self, user_id: i32) -> Result<String, jsonwebtoken::errors::Error> {
         #[derive(serde::Serialize, serde::Deserialize)]
         struct Claims {
@@ -49,7 +44,6 @@ impl AuthService {
         )
     }
 
-    /// رمزگشایی JWT
     pub fn decode_token(&self, token: &str) -> Result<i32, jsonwebtoken::errors::Error> {
         #[derive(serde::Serialize, serde::Deserialize)]
         struct Claims {
@@ -65,21 +59,18 @@ impl AuthService {
         Ok(data.claims.sub)
     }
 
-    /// تولید توکن رفرش تصادفی
     pub fn generate_refresh_token(&self) -> String {
         let mut bytes = [0u8; 64];
         OsRng.fill_bytes(&mut bytes);
         STANDARD.encode(bytes)
     }
 
-    /// هش توکن رفرش
     pub fn hash_refresh_token(&self, token: &str) -> String {
         let mut hasher = Sha256::new();
         hasher.update(token.as_bytes());
         STANDARD.encode(hasher.finalize())
     }
 
-    /// استخراج اطلاعات جلسه
     pub fn extract_session_info(
         &self,
         headers: &HeaderMap,
@@ -104,7 +95,6 @@ impl AuthService {
         }
     }
 
-    /// صدور توکن دسترسی و رفرش
     pub fn issue_tokens(
         &self,
         user_id: i32,
