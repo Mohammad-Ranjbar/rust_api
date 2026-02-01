@@ -10,13 +10,13 @@ use crate::http::requests::auth_request::LoginRequest;
 use crate::http::requests::refresh_token_request::RefreshTokenRequest;
 use crate::http::responses::auth_response::{LoginResponse, RefreshTokenResponse};
 use crate::entity::{user, refresh_token};
+use sea_orm::prelude::Expr;
 
 pub async fn login(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(payload): Json<LoginRequest>,
 ) -> Result<Json<LoginResponse>, ApiError> {
-    // find user
     let user_model = user::Entity::find()
         .filter(user::Column::Mobile.eq(payload.mobile.clone()))
         .one(&state.db)
@@ -24,7 +24,6 @@ pub async fn login(
         .map_err(|_| ApiError::internal(None))?
         .ok_or_else(|| ApiError::unauthorized_msg("User not found"))?;
 
-    // verify password
     let is_valid = state.auth_service.verify_password(&payload.password, &user_model.password_hash);
     if !is_valid {
         return Err(ApiError::unauthorized_msg("Invalid password"));
@@ -52,25 +51,56 @@ pub async fn login(
     }))
 }
 
-
 pub async fn refresh_token(
     State(state): State<AppState>,
     Json(payload): Json<RefreshTokenRequest>,
 ) -> Result<Json<RefreshTokenResponse>, ApiError> {
+    // هش کردن توکن ورودی
     let refresh_hash = state.auth_service.hash_refresh_token(&payload.refresh_token);
 
+    // پیدا کردن مدل در DB
     let token_model = refresh_token::Entity::find()
-        .filter(refresh_token::Column::TokenHash.eq(refresh_hash))
+        .filter(refresh_token::Column::TokenHash.eq(refresh_hash.clone()))
         .one(&state.db)
         .await
         .map_err(|_| ApiError::internal(None))?
         .ok_or_else(|| ApiError::unauthorized_msg("Invalid refresh token"))?;
 
-    let access_token = state.auth_service.create_token(token_model.user_id)
+    // اگر قبلاً revoked شده → احتمالا حمله یا سرقت
+    if token_model.revoked {
+        // revoke همه توکن‌های کاربر
+        refresh_token::Entity::update_many()
+            .col_expr(refresh_token::Column::Revoked, Expr::value(true))
+            .filter(refresh_token::Column::UserId.eq(token_model.user_id))
+            .exec(&state.db)
+            .await
+            .map_err(|_| ApiError::internal(None))?;
+
+        return Err(ApiError::unauthorized_msg(
+            "Detected stolen or reused refresh token. Please login again."
+        ));
+    }
+
+    // ذخیره user_id قبل از move
+    let user_id = token_model.user_id;
+
+    // revoke توکن فعلی (consume once)
+    let mut active: refresh_token::ActiveModel = token_model.into();
+    active.revoked = Set(true);
+    active.update(&state.db)
+        .await
         .map_err(|_| ApiError::internal(None))?;
 
+    // تولید access token جدید
+    let access_token = state.auth_service
+        .create_token(user_id)
+        .map_err(|_| ApiError::internal(None))?;
+
+    // پاسخ به کلاینت
     Ok(Json(RefreshTokenResponse { access_token }))
 }
+
+
 
 
 pub async fn profile(
