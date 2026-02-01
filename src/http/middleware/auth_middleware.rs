@@ -22,13 +22,12 @@ pub async fn auth_middleware(
     mut req: Request<Body>,
     next: Next,
 ) -> impl IntoResponse {
-    // دریافت state از داخل request
+   
     let state = match req.extensions().get::<AppState>() {
         Some(s) => s,
         None => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     };
 
-    // گرفتن توکن
     let token = match req
         .headers()
         .get("Authorization")
@@ -41,7 +40,7 @@ pub async fn auth_middleware(
 
     let secret = JWT_SECRET.get().expect("JWT_SECRET not set");
 
-    // decode JWT
+
     let user_id = match decode::<Claims>(
         token,
         &DecodingKey::from_secret(secret.as_ref()),
@@ -51,7 +50,6 @@ pub async fn auth_middleware(
         Err(_) => return StatusCode::UNAUTHORIZED.into_response(),
     };
 
-    // بررسی refresh tokenهای فعال و معتبر
     let now = Utc::now();
     let active_tokens = match refresh_token::Entity::find()
         .filter(refresh_token::Column::UserId.eq(user_id))
@@ -70,7 +68,7 @@ pub async fn auth_middleware(
         return StatusCode::UNAUTHORIZED.into_response();
     }
 
-    // user_id را در request extensions قرار بده
+
     req.extensions_mut().insert(user_id);
 
     next.run(req).await
