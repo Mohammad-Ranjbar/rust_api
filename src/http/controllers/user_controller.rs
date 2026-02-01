@@ -12,7 +12,6 @@ use crate::http::responses::user_response::UserResponse;
 use validator::Validate;
 use sea_orm::{ActiveModelTrait, EntityTrait, Set,QueryOrder};
 
-/// لیست همه کاربران
 pub async fn index(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<UserResponse>>, ApiError> {
@@ -28,7 +27,6 @@ pub async fn index(
     Ok(Json(models.into_iter().map(Into::into).collect()))
 }
 
-/// نمایش یک کاربر
 pub async fn show(
     State(state): State<AppState>,
     Path(id): Path<String>,
@@ -46,7 +44,6 @@ pub async fn show(
     Ok(Json(model.into()))
 }
 
-/// ثبت کاربر جدید
 pub async fn store(
     State(state): State<AppState>,
     Json(payload): Json<CreateUserRequest>,
@@ -71,7 +68,6 @@ pub async fn store(
     Ok(Json(model.into()))
 }
 
-/// بروزرسانی کاربر توسط admin
 pub async fn update(
     State(state): State<AppState>,
     Path(id): Path<String>,
@@ -103,7 +99,6 @@ pub async fn update(
     Ok(Json(updated.into()))
 }
 
-/// بروزرسانی پروفایل کاربر (کاربر لاگین شده)
 pub async fn update_profile(
     State(state): State<AppState>,
     Extension(user_id): Extension<i32>,
@@ -132,7 +127,6 @@ pub async fn update_profile(
     Ok(Json(updated.into()))
 }
 
-/// حذف کاربر
 pub async fn delete(
     State(state): State<AppState>,
     Path(id): Path<String>,
