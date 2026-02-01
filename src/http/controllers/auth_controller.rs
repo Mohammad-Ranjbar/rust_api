@@ -10,12 +10,13 @@ use crate::http::requests::auth_request::LoginRequest;
 use crate::http::requests::refresh_token_request::RefreshTokenRequest;
 use crate::http::responses::auth_response::{LoginResponse, RefreshTokenResponse};
 use crate::entity::{user, refresh_token};
-use sea_orm::prelude::Expr;
-
+use axum::extract::ConnectInfo;
+use std::net::SocketAddr;
 
 pub async fn login(
     State(state): State<AppState>,
     headers: HeaderMap,
+        ConnectInfo(addr): ConnectInfo<SocketAddr>, 
     Json(payload): Json<LoginRequest>,
 ) -> Result<Json<LoginResponse>, ApiError> {
     let user_model = user::Entity::find()
@@ -30,7 +31,8 @@ pub async fn login(
         return Err(ApiError::unauthorized_msg("Invalid password"));
     }
 
-    let tokens = state.auth_service.issue_tokens(user_model.id, &headers, &std::net::SocketAddr::from(([127,0,0,1],0)))
+    let tokens = state.auth_service
+        .issue_tokens(user_model.id, &headers, &addr) 
         .map_err(|_| ApiError::internal(None))?;
 
     let refresh_hash = state.auth_service.hash_refresh_token(&tokens.refresh_token);
@@ -40,7 +42,7 @@ pub async fn login(
         device_id: Set(tokens.session.device_id.clone()),
         ip_address: Set(tokens.session.ip_address.clone()),
         user_agent: Set(tokens.session.user_agent.clone()),
-        expires_at: Set(Utc::now()), 
+        expires_at: Set(Utc::now() + chrono::Duration::days(30)), 
         ..Default::default()
     };
     refresh_model.insert(&state.db).await.map_err(|_| ApiError::internal(None))?;
@@ -51,75 +53,6 @@ pub async fn login(
         user: user_model.into(), 
     }))
 }
-
-pub async fn refresh_token(
-    State(state): State<AppState>,
-    Json(payload): Json<RefreshTokenRequest>,
-) -> Result<Json<RefreshTokenResponse>, ApiError> {
-   
-
-    let now = chrono::Utc::now();
-
-    // هش کردن توکن ورودی
-    let refresh_hash = state.auth_service.hash_refresh_token(&payload.refresh_token);
-
-    // پیدا کردن مدل در DB
-    let token_model = refresh_token::Entity::find()
-        .filter(refresh_token::Column::TokenHash.eq(refresh_hash.clone()))
-        .one(&state.db)
-        .await
-        .map_err(|_| ApiError::internal(None))?
-        .ok_or_else(|| ApiError::unauthorized_msg("Invalid refresh token"))?;
-
-    // اگر قبلاً revoked شده یا منقضی شده → احتمالا حمله یا سرقت
-    if token_model.revoked || token_model.expires_at < now {
-        // revoke همه توکن‌های کاربر
-        refresh_token::Entity::update_many()
-            .col_expr(refresh_token::Column::Revoked, Expr::value(true))
-            .filter(refresh_token::Column::UserId.eq(token_model.user_id))
-            .exec(&state.db)
-            .await
-            .map_err(|_| ApiError::internal(None))?;
-
-        return Err(ApiError::unauthorized_msg(
-            "Refresh token revoked or expired. Please login again."
-        ));
-    }
-
-    // revoke توکن فعلی
-    let mut active: refresh_token::ActiveModel = token_model.clone().into();
-    active.revoked = Set(true);
-    active.update(&state.db)
-        .await
-        .map_err(|_| ApiError::internal(None))?;
-
-    // issue توکن جدید
-    let tokens = state.auth_service
-        .issue_tokens(token_model.user_id, &Default::default(), &std::net::SocketAddr::from(([127,0,0,1],0)))
-        .map_err(|_| ApiError::internal(None))?;
-
-    // ذخیره refresh-token جدید
-    let refresh_hash = state.auth_service.hash_refresh_token(&tokens.refresh_token);
-    let refresh_model = refresh_token::ActiveModel {
-        user_id: Set(token_model.user_id),
-        token_hash: Set(refresh_hash),
-        device_id: Set(tokens.session.device_id.clone()),
-        ip_address: Set(tokens.session.ip_address.clone()),
-        user_agent: Set(tokens.session.user_agent.clone()),
-       expires_at: Set(Utc::now() + chrono::Duration::days(30)),
-        ..Default::default()
-    };
-    refresh_model.insert(&state.db)
-        .await
-        .map_err(|_| ApiError::internal(None))?;
-
-    Ok(Json(RefreshTokenResponse {
-        access_token: tokens.access_token
-    }))
-}
-
-
-
 
 pub async fn profile(
     State(state): State<AppState>,
@@ -132,4 +65,64 @@ pub async fn profile(
         .ok_or_else(ApiError::not_found)?;
 
     Ok(Json(user_model))
+}
+
+
+pub async fn refresh_token(
+    State(state): State<AppState>,
+    Json(payload): Json<RefreshTokenRequest>,
+) -> Result<Json<RefreshTokenResponse>, ApiError> {
+
+    let now = chrono::Utc::now();
+
+    let refresh_hash = state.auth_service.hash_refresh_token(&payload.refresh_token);
+
+    let token_model = refresh_token::Entity::find()
+        .filter(refresh_token::Column::TokenHash.eq(refresh_hash.clone()))
+        .one(&state.db)
+        .await
+        .map_err(|_| ApiError::internal(None))?
+        .ok_or_else(|| ApiError::unauthorized_msg("Invalid refresh token"))?;
+
+    if token_model.revoked || token_model.expires_at < now {
+        refresh_token::Entity::update_many()
+            .col_expr(refresh_token::Column::Revoked, sea_orm::sea_query::Expr::value(true))
+            .filter(refresh_token::Column::UserId.eq(token_model.user_id))
+            .exec(&state.db)
+            .await
+            .map_err(|_| ApiError::internal(None))?;
+
+        return Err(ApiError::unauthorized_msg(
+            "Refresh token revoked or expired. Please login again."
+        ));
+    }
+
+    let tokens = state.auth_service
+        .issue_tokens(token_model.user_id, &Default::default(), &std::net::SocketAddr::from(([127,0,0,1],0)))
+        .map_err(|_| ApiError::internal(None))?;
+
+
+    let refresh_hash_new = state.auth_service.hash_refresh_token(&tokens.refresh_token);
+    let refresh_model = refresh_token::ActiveModel {
+        user_id: Set(token_model.user_id),
+        token_hash: Set(refresh_hash_new),
+        device_id: Set(tokens.session.device_id.clone()),
+        ip_address: Set(tokens.session.ip_address.clone()),
+        user_agent: Set(tokens.session.user_agent.clone()),
+        expires_at: Set(Utc::now() + chrono::Duration::days(30)),
+        ..Default::default()
+    };
+    refresh_model.insert(&state.db)
+        .await
+        .map_err(|_| ApiError::internal(None))?;
+
+    let mut active_old: refresh_token::ActiveModel = token_model.clone().into();
+    active_old.revoked = Set(true);
+    active_old.update(&state.db)
+        .await
+        .map_err(|_| ApiError::internal(None))?;
+
+    Ok(Json(RefreshTokenResponse {
+        access_token: tokens.access_token
+    }))
 }
