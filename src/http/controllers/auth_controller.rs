@@ -62,37 +62,25 @@ pub async fn profile(
     State(state): State<AppState>,
     Extension(user_id): Extension<i32>,
 ) -> Result<Json<user::Model>, ApiError> {
-
+tracing::info!("Profile handler called, user_id={}", user_id);
     let user_model = match user::Entity::find_by_id(user_id)
         .one(&state.db)
         .await
     {
-        Ok(Some(model)) => model, 
+        Ok(Some(model)) => model,
         Ok(None) => {
             error!("User with id {} not found", user_id);
             return Err(ApiError::not_found());
         }
         Err(e) => {
             error!("Database query failed for user_id {}: {:?}", user_id, e);
-            return Err(ApiError::internal(Some(format!(
-                "DB error: {}",
-                e
-            ))));
+            return Err(ApiError::internal(Some(format!("DB error: {}", e))));
         }
     };
 
-
-    match serde_json::to_value(&user_model) {
-        Ok(_) => Ok(Json(user_model)),
-        Err(e) => {
-            error!("Failed to serialize user model: {:?}", e);
-            Err(ApiError::internal(Some(format!(
-                "Serialization error: {}",
-                e
-            ))))
-        }
-    }
+    Ok(Json(user_model))
 }
+
 
 
 
