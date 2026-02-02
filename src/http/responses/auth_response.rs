@@ -11,6 +11,4 @@ pub struct LoginResponse {
 #[derive(Debug, Serialize)]
 pub struct RefreshTokenResponse {
     pub access_token: String,
-    // Optional: include refresh token if you rotate it
-    // pub refresh_token: Option<String>,
 }

@@ -62,12 +62,12 @@ pub async fn profile(
     State(state): State<AppState>,
     Extension(user_id): Extension<i32>,
 ) -> Result<Json<user::Model>, ApiError> {
-    // بررسی مدل کاربر از DB
+
     let user_model = match user::Entity::find_by_id(user_id)
         .one(&state.db)
         .await
     {
-        Ok(Some(model)) => model, // کاربر پیدا شد
+        Ok(Some(model)) => model, 
         Ok(None) => {
             error!("User with id {} not found", user_id);
             return Err(ApiError::not_found());

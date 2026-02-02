@@ -9,7 +9,7 @@ use jsonwebtoken::{encode, decode, Header, Validation, EncodingKey, DecodingKey}
 
 #[derive(Clone, Debug)]
 pub struct AuthService {
-    pub jwt_secret: String, // اضافه شد
+    pub jwt_secret: String, 
 }
 
 impl AuthService {
@@ -34,7 +34,7 @@ impl AuthService {
 
         let claims = Claims {
             sub: user_id,
-            exp: (Utc::now().timestamp() + 3600) as usize, // 1 ساعت اعتبار
+            exp: (Utc::now().timestamp() + 3600) as usize, 
         };
 
         encode(
