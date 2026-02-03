@@ -13,6 +13,7 @@ pub mod app_state;
 mod db;
 mod entity;
 mod http;
+pub mod seeders;
 
 use crate::http::middleware::auth_middleware;
 
