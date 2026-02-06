@@ -6,6 +6,7 @@ use crate::app_state::AppState;
 use crate::http::errors::api_error::ApiError;
 use crate::http::services::auth_service::AuthService;
 use crate::entity::user;
+use crate::http::services::rules::check_unique_mobile;
 use crate::http::requests::user_request::{CreateUserRequest, UpdateUserRequest};
 use crate::http::requests::update_profile_request::UpdateProfileRequest;
 use crate::http::responses::user_response::UserResponse;
@@ -49,7 +50,7 @@ pub async fn store(
     Json(payload): Json<CreateUserRequest>,
 ) -> Result<Json<UserResponse>, ApiError> {
     payload.validate().map_err(|_| ApiError::unprocessable())?;
-
+    check_unique_mobile(&state.db, &payload.mobile, None).await?;
     let password_hash = AuthService::hash_password(&payload.password);
 
     let user_active = user::ActiveModel {
@@ -84,6 +85,8 @@ pub async fn update(
             ApiError::internal(None)
         })?
         .ok_or_else(ApiError::not_found)?;
+
+    check_unique_mobile(&state.db, &payload.mobile, Some(id)).await?;
 
     let mut active: user::ActiveModel = model.into();
 

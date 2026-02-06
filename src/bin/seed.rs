@@ -1,4 +1,6 @@
-// src/bin/seed.rs
+#[path = "../entity/user.rs"]
+mod user;
+
 use sea_orm::{Database, ActiveModelTrait, Set};
 use chrono::Utc;
 use fake::{Fake, faker::{name::en::{FirstName, LastName}, phone_number::en::PhoneNumber}};
@@ -7,6 +9,7 @@ use base64::{engine::general_purpose, Engine as _};
 use std::env;
 use dotenv::dotenv;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use user as users;
 
 // mod users {
 //     use sea_orm::entity::prelude::*;

@@ -1,11 +1,12 @@
 use axum::http::HeaderMap;
 use chrono::Utc;
-use rand_core::{OsRng, RngCore};
 use sha2::{Sha256, Digest};
-use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use crate::http::types::session::{SessionInfo, IssuedTokens};
 use jsonwebtoken::{encode, decode, Header, Validation, EncodingKey, DecodingKey};
+use rand::rngs::OsRng;
+use rand::TryRngCore;
+use base64::engine::general_purpose::STANDARD;
 
 #[derive(Clone, Debug)]
 pub struct AuthService {
@@ -61,7 +62,10 @@ impl AuthService {
 
     pub fn generate_refresh_token(&self) -> String {
         let mut bytes = [0u8; 64];
-        OsRng.fill_bytes(&mut bytes);
+        let mut rng = OsRng;
+
+        rng.try_fill_bytes(&mut bytes).unwrap();
+
         STANDARD.encode(bytes)
     }
 
